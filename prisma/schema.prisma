@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["filters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  BRANCH_MANAGER
+  CASHIER
+  TRAVEL_AGENT
+  DRIVER
+  ACCOUNTANT
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  passwordHash String
+  role        Role
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile   Profile?
+  sales     Sale[]   @relation("AgentSales")
+  driverSales Sale[] @relation("DriverSales")
+  commissions Commission[]
+}
+
+model Profile {
+  id        String @id @default(uuid())
+  userId    String @unique
+  firstName String
+  lastName  String
+  phone     String?
+  address   String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Branch {
+  id   String @id @default(uuid())
+  name String @unique
+  address String?
+  sales Sale[]
+}
+
+model Sale {
+  id          String   @id @default(uuid())
+  branchId    String
+  agentId     String
+  driverId    String?
+  totalAmount Decimal   @db.Decimal(10,2)
+  vatAmount   Decimal   @db.Decimal(10,2)
+  createdAt   DateTime @default(now())
+
+  branch   Branch @relation(fields: [branchId], references: [id])
+  agent    User   @relation("AgentSales", fields: [agentId], references: [id])
+  driver   User?  @relation("DriverSales", fields: [driverId], references: [id])
+  items    SaleItem[]
+  commission Commission?
+}
+
+model SaleItem {
+  id        String   @id @default(uuid())
+  saleId    String
+  productId String
+  quantity  Int
+  price     Decimal @db.Decimal(10,2)
+
+  sale Sale @relation(fields: [saleId], references: [id])
+}
+
+model Commission {
+  id        String   @id @default(uuid())
+  saleId    String @unique
+  agentId   String
+  driverId  String?
+  amount    Decimal @db.Decimal(10,2)
+  paid      Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  sale   Sale @relation(fields: [saleId], references: [id])
+  agent  User @relation(fields: [agentId], references: [id])
+  driver User? @relation(fields: [driverId], references: [id])
+}
