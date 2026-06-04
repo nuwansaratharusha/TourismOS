@@ -83,6 +83,26 @@ export function AppShell({ children }: { children: ReactNode }) {
             variant="ghost"
             size="sm"
             onClick={() => {
+              if (typeof window !== "undefined") {
+                // Clear any stored Supabase session tokens to break potential redirect loops
+                const localKeys: string[] = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key && (key.includes("supabase") || key.includes("sb-") || key.includes("access_token"))) {
+                    localKeys.push(key);
+                  }
+                }
+                localKeys.forEach(k => localStorage.removeItem(k));
+
+                const sessionKeys: string[] = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                  const key = sessionStorage.key(i);
+                  if (key && (key.includes("supabase") || key.includes("sb-") || key.includes("access_token"))) {
+                    sessionKeys.push(key);
+                  }
+                }
+                sessionKeys.forEach(k => sessionStorage.removeItem(k));
+              }
               supabase.auth.signOut().catch(console.error);
               window.location.href = "/auth";
             }}
