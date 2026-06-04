@@ -11,7 +11,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     
     const SUPABASE_URL =
       process.env.SUPABASE_URL ||
-      'https://ehbrhiegxpyowtrwvhkl.supabase.co';
+      'https://ehbrhiegxpyowtrvwhkl.supabase.co';
 
     const SUPABASE_PUBLISHABLE_KEY =
       process.env.SUPABASE_ANON_KEY ||
