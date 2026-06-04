@@ -9,21 +9,15 @@ import type { Database } from './types'
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    // Accept both naming conventions
-    const SUPABASE_PUBLISHABLE_KEY =
-      process.env.SUPABASE_PUBLISHABLE_KEY ||
-      process.env.SUPABASE_ANON_KEY;
+    const SUPABASE_URL =
+      process.env.SUPABASE_URL ||
+      'https://ehbrhiegxpyowtrwvhkl.supabase.co';
 
-    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-      const missing = [
-        ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-        ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY'] : []),
-      ];
-      const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Add them to Vercel Environment Variables.`;
-      console.error(`[Supabase] ${message}`);
-      throw new Error(message);
-    }
+    const SUPABASE_PUBLISHABLE_KEY =
+      process.env.SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYnJoaWVneHB5b3d0cnZ3aGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MDM1ODMsImV4cCI6MjA5NjA3OTU4M30.P7Rga2nYCpFNkAsC5K8w0hNY9RUbdko0ZHUZMot6SRo';
+
     
     const request = getRequest();
 
