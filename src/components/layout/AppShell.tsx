@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, ShoppingCart, Users, Car, Receipt,
   Wallet, ScrollText, LogOut, Building2, Briefcase, Terminal
@@ -81,7 +82,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => signOut()}
+            onClick={() => {
+              supabase.auth.signOut().catch(console.error);
+              window.location.href = "/auth";
+            }}
             className="w-full justify-start mt-3 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
           >
             <LogOut className="size-4 mr-2" /> Sign out
