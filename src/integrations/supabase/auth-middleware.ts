@@ -9,14 +9,23 @@ import type { Database } from './types'
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     
-    const SUPABASE_URL =
+    let rawUrl =
       process.env.SUPABASE_URL ||
       'https://ehbrhiegxpyowtrvwhkl.supabase.co';
+    if (rawUrl.includes('ehbrhiegxpyowtrwvhkl')) {
+      rawUrl = rawUrl.replace('ehbrhiegxpyowtrwvhkl', 'ehbrhiegxpyowtrvwhkl');
+    }
+    const SUPABASE_URL = rawUrl;
 
-    const SUPABASE_PUBLISHABLE_KEY =
+    let rawKey =
       process.env.SUPABASE_ANON_KEY ||
       process.env.SUPABASE_PUBLISHABLE_KEY ||
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoYnJoaWVneHB5b3d0cnZ3aGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MDM1ODMsImV4cCI6MjA5NjA3OTU4M30.P7Rga2nYCpFNkAsC5K8w0hNY9RUbdko0ZHUZMot6SRo';
+
+    if (rawKey.includes('ehbrhiegxpyowtrwvhkl')) {
+      rawKey = rawKey.replaceAll('ehbrhiegxpyowtrwvhkl', 'ehbrhiegxpyowtrvwhkl');
+    }
+    const SUPABASE_PUBLISHABLE_KEY = rawKey;
 
     
     const request = getRequest();
