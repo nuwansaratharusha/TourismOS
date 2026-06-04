@@ -116,6 +116,9 @@ function CashierTerminal() {
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [customDescription, setCustomDescription] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showAddCustomModal, setShowAddCustomModal] = useState<boolean>(false);
+  const [modalDescription, setModalDescription] = useState<string>("");
+  const [modalAmount, setModalAmount] = useState<string>("");
 
   // Connection & Offline Queue
   const [isOnline, setIsOnline] = useState<boolean>(true);
@@ -308,6 +311,29 @@ function CashierTerminal() {
       }
     ]);
     toast.success(`Added ${product.name} to bill`);
+  };
+
+  const handleAddCustomItem = () => {
+    const amountNum = Number(modalAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+    const desc = modalDescription.trim() || `Batik touch item #${accumulatedEntries.length + 1}`;
+    setAccumulatedEntries(prev => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        amount: amountNum,
+        description: desc
+      }
+    ]);
+    
+    // reset modal states
+    setModalDescription("");
+    setModalAmount("");
+    setShowAddCustomModal(false);
+    toast.success(`Added ${desc} to bill`);
   };
 
   // Calculations
@@ -659,14 +685,25 @@ function CashierTerminal() {
           
           {/* 1. LEFT PANEL: RECEIPT TAPE / RUNNING TOTALS */}
           <aside className="w-80 border-r border-border bg-card/50 flex flex-col min-h-0 shrink-0">
-            <div className="p-4 border-b border-border shrink-0 flex items-center justify-between">
+            <div className="p-4 border-b border-border shrink-0 flex items-center justify-between gap-2">
               <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                 <Receipt className="size-4 text-indigo-400" />
                 Receipt Tape
               </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 bg-background border border-border rounded text-muted-foreground">
-                {accumulatedEntries.length + (Number(currentEntry) > 0 ? 1 : 0)} items
-              </span>
+              <div className="flex items-center gap-1.5">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-[9px] font-extrabold px-2 border-indigo-500/20 hover:border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 hover:bg-indigo-500/10 gap-1 rounded-lg transition-colors shrink-0"
+                  onClick={() => setShowAddCustomModal(true)}
+                >
+                  <Plus className="size-2.5" />
+                  Add New
+                </Button>
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-background border border-border rounded text-muted-foreground shrink-0">
+                  {accumulatedEntries.length + (Number(currentEntry) > 0 ? 1 : 0)} items
+                </span>
+              </div>
             </div>
 
             {/* Scrollable list of items */}
@@ -675,7 +712,7 @@ function CashierTerminal() {
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
                   <Receipt className="size-10 text-muted-foreground/30 mb-2 stroke-[1.5]" />
                   <p className="text-xs font-medium">Register is empty</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-1 leading-normal">Enter amounts on the keypad and tap "+" to build the transaction.</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-1 leading-normal">Enter amounts on the keypad, search the catalog, or click "Add New" to build the bill.</p>
                 </div>
               ) : (
                 <>
@@ -700,16 +737,26 @@ function CashierTerminal() {
                   ))}
 
                   {Number(currentEntry) > 0 && (
-                    <div className="p-2.5 rounded-xl bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 border-dashed animate-pulse">
-                      <div className="text-[9px] uppercase font-bold text-indigo-500 dark:text-indigo-400">Current Entry</div>
-                      {customDescription.trim() && (
-                        <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 truncate mb-0.5">
-                          {customDescription.trim()}
+                    <div className="p-3 rounded-xl bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 border-dashed flex items-center justify-between gap-3 animate-pulse">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[9px] uppercase font-bold text-indigo-500 dark:text-indigo-400">Current Entry</div>
+                        {customDescription.trim() && (
+                          <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 truncate mb-0.5">
+                            {customDescription.trim()}
+                          </div>
+                        )}
+                        <div className="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                          {formatMoney(Number(currentEntry), selectedCurrency)}
                         </div>
-                      )}
-                      <div className="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400">
-                        {formatMoney(Number(currentEntry), selectedCurrency)}
                       </div>
+                      <Button
+                        size="sm"
+                        className="h-8 px-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-[10px] gap-1 shadow-sm shrink-0 active:scale-95 transition-all"
+                        onClick={() => handleKeyPress("+")}
+                      >
+                        <Plus className="size-3" />
+                        Add Item
+                      </Button>
                     </div>
                   )}
                 </>
@@ -1345,6 +1392,71 @@ function CashierTerminal() {
               }}
             >
               Apply Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ─── ADD CUSTOM ITEM MODAL ─── */}
+      <Dialog open={showAddCustomModal} onOpenChange={setShowAddCustomModal}>
+        <DialogContent className="sm:max-w-md bg-card border-border text-foreground p-6 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+              <ShoppingBag className="size-5 text-indigo-400" />
+              Add Custom Item to Bill
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs">
+              Directly input an item name and price in the active currency ({selectedCurrency}) to add it to the receipt tape.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="modal-item-desc" className="text-xs font-semibold text-muted-foreground">
+                Item Description
+              </Label>
+              <Input
+                id="modal-item-desc"
+                type="text"
+                placeholder="e.g. Handcrafted Silk Batik Scarf"
+                value={modalDescription}
+                onChange={e => setModalDescription(e.target.value)}
+                className="bg-background border-input text-foreground text-sm rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="modal-item-price" className="text-xs font-semibold text-muted-foreground">
+                Price ({selectedCurrency})
+              </Label>
+              <Input
+                id="modal-item-price"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={modalAmount}
+                onChange={e => setModalAmount(e.target.value)}
+                className="bg-background border-input text-foreground text-sm rounded-xl font-mono"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="ghost"
+              className="flex-1 bg-muted hover:bg-muted/80 text-foreground text-xs h-10 rounded-xl font-semibold"
+              onClick={() => {
+                setModalDescription("");
+                setModalAmount("");
+                setShowAddCustomModal(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-10 rounded-xl font-bold"
+              onClick={handleAddCustomItem}
+            >
+              Add Item
             </Button>
           </DialogFooter>
         </DialogContent>
