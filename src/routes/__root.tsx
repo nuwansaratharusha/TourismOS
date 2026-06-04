@@ -44,14 +44,22 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <div className="max-w-3xl w-full text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
+        <div className="mt-6 p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-left rounded-lg text-xs font-mono overflow-auto max-h-96 whitespace-pre-wrap">
+          <p className="font-bold text-red-600 dark:text-red-400 mb-2">
+            Error: {error?.message || "Unknown error"}
+          </p>
+          <div className="text-muted-foreground opacity-90 leading-relaxed">
+            {error?.stack || "No stack trace available"}
+          </div>
+        </div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
