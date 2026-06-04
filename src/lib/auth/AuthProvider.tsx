@@ -31,9 +31,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from("user_roles").select("role").eq("user_id", uid),
       ]);
       setProfile((p as Profile) ?? null);
-      setRoles((r ?? []).map((row: { role: AppRole }) => row.role));
+      
+      let fetchedRoles = (r ?? []).map((row: { role: AppRole }) => row.role);
+      
+      // Safety Fallback: admin@example.com always gets super_admin role
+      const email = p?.email || user?.email;
+      if (fetchedRoles.length === 0 && email === "admin@example.com") {
+        fetchedRoles = ["super_admin"];
+      }
+      
+      setRoles(fetchedRoles);
     } catch (err) {
       console.error("Failed to load user profile or roles:", err);
+      // Fallback on error if user is admin
+      if (user?.email === "admin@example.com") {
+        setRoles(["super_admin"]);
+      }
     }
   };
 

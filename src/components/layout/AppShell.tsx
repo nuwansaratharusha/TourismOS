@@ -44,25 +44,32 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="text-xs text-sidebar-foreground/60 mt-0.5">Commission Platform</div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {visible.map(item => {
-            const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <Icon className="size-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {visible.length === 0 ? (
+            <div className="p-4 text-xs text-sidebar-foreground/60 border border-sidebar-border/40 rounded-lg bg-sidebar-accent/20">
+              <p className="font-semibold text-sidebar-foreground/80 mb-1">No Roles Assigned</p>
+              <p className="leading-relaxed">This account has no access permissions. Ask your administrator to assign a role in the Users panel.</p>
+            </div>
+          ) : (
+            visible.map(item => {
+              const active = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {item.label}
+                </Link>
+              );
+            })
+          )}
         </nav>
         <div className="p-4 border-t border-sidebar-border">
           <div className="text-sm font-medium">{profile?.full_name ?? "—"}</div>
