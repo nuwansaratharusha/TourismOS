@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, ShoppingCart, Users, Car, Receipt,
-  Wallet, ScrollText, LogOut, Building2, Briefcase, Terminal
+  Wallet, ScrollText, LogOut, Building2, Briefcase, Terminal,
+  Sun, Moon
 } from "lucide-react";
 import type { AppRole } from "@/lib/domain/types";
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 
 interface NavItem {
   to: string;
@@ -35,6 +36,26 @@ const NAV: NavItem[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile, roles, signOut, hasAnyRole } = useAuth();
   const { location } = useRouterState();
+
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDark = document.documentElement.classList.contains("dark");
+      setTheme(isDark ? "dark" : "light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", nextTheme);
+  };
 
   const visible = NAV.filter(n => hasAnyRole(n.roles));
 
@@ -74,8 +95,21 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </nav>
         <div className="p-4 border-t border-sidebar-border">
-          <div className="text-sm font-medium">{profile?.full_name ?? "—"}</div>
-          <div className="text-xs text-sidebar-foreground/60 truncate">{profile?.email}</div>
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium truncate">{profile?.full_name ?? "—"}</div>
+              <div className="text-xs text-sidebar-foreground/60 truncate">{profile?.email}</div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="h-8 w-8 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 rounded-lg border border-sidebar-border/50 shrink-0 ml-2"
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {theme === "dark" ? <Sun className="size-3.5 text-amber-400" /> : <Moon className="size-3.5 text-indigo-400" />}
+            </Button>
+          </div>
           <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/50 mt-1">
             {roles.join(" · ") || "no role"}
           </div>
