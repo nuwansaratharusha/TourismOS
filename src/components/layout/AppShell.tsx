@@ -23,7 +23,7 @@ const NAV: NavItem[] = [
   { to: "/app/pos", label: "Point of Sale", icon: ShoppingCart, roles: ["super_admin","branch_manager","cashier"] },
   { to: "/app/terminal", label: "Touch Terminal", icon: Terminal, roles: ["super_admin","branch_manager","cashier"] },
   { to: "/app/sales", label: "Sales & Invoices", icon: Receipt, roles: ["super_admin","branch_manager","cashier","accountant"] },
-  { to: "/app/commissions", label: "Commissions", icon: Wallet, roles: ["super_admin","branch_manager","accountant","cashier"] },
+  { to: "/app/commissions", label: "Commissions", icon: Wallet, roles: ["super_admin","branch_manager","accountant"] },
   { to: "/app/agents", label: "Travel Agents", icon: Briefcase, roles: ["super_admin","branch_manager"] },
   { to: "/app/drivers", label: "Drivers", icon: Car, roles: ["super_admin","branch_manager"] },
   { to: "/app/branches", label: "Branches", icon: Building2, roles: ["super_admin"] },

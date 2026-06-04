@@ -18,6 +18,11 @@ export const Route = createFileRoute("/app/sales")({
 });
 
 function SalesLedger() {
+  const { roles } = useAuth();
+  const isCashierOnly = useMemo(() => {
+    return roles.includes("cashier") && !roles.some(r => ["super_admin", "branch_manager", "accountant"].includes(r));
+  }, [roles]);
+
   const [search, setSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all");
   const [agentFilter, setAgentFilter] = useState("all");
@@ -126,21 +131,32 @@ function SalesLedger() {
       toast.warning("No data to export");
       return;
     }
-    const headers = ["Invoice Number", "Date", "Customer", "Branch", "Subtotal", "Discount", "VAT Amount", "Gross Amount", "Agent Commission", "Driver Commission", "Company Revenue", "Status"];
-    const rows = filteredSales.map(s => [
-      s.invoice_number,
-      new Date(s.sale_date).toLocaleString(),
-      s.customer_name || "Walk-in",
-      s.branches?.name || "Main",
-      s.subtotal,
-      s.discount,
-      s.vat_amount,
-      s.gross_amount,
-      s.agent_commission_amount,
-      s.driver_commission_amount,
-      s.company_revenue,
-      s.status
-    ]);
+    const headers = isCashierOnly
+      ? ["Invoice Number", "Date", "Customer", "Branch", "Subtotal", "Discount", "VAT Amount", "Gross Amount", "Status"]
+      : ["Invoice Number", "Date", "Customer", "Branch", "Subtotal", "Discount", "VAT Amount", "Gross Amount", "Agent Commission", "Driver Commission", "Company Revenue", "Status"];
+
+    const rows = filteredSales.map(s => {
+      const baseRow = [
+        s.invoice_number,
+        new Date(s.sale_date).toLocaleString(),
+        s.customer_name || "Walk-in",
+        s.branches?.name || "Main",
+        s.subtotal,
+        s.discount,
+        s.vat_amount,
+        s.gross_amount,
+      ];
+      if (isCashierOnly) {
+        return [...baseRow, s.status];
+      }
+      return [
+        ...baseRow,
+        s.agent_commission_amount,
+        s.driver_commission_amount,
+        s.company_revenue,
+        s.status
+      ];
+    });
 
     const csvContent = "data:text/csv;charset=utf-8,"
       + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
@@ -174,7 +190,7 @@ function SalesLedger() {
       </div>
 
       {/* Filters Card */}
-      <Card className="p-4 grid sm:grid-cols-2 md:grid-cols-5 gap-3 items-center">
+      <Card className={`p-4 grid sm:grid-cols-2 ${isCashierOnly ? "md:grid-cols-3" : "md:grid-cols-5"} gap-3 items-center`}>
         <div className="relative">
           <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
           <Input
@@ -199,33 +215,37 @@ function SalesLedger() {
           </Select>
         </div>
 
-        <div>
-          <Select value={agentFilter} onValueChange={setAgentFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Agent" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Agents</SelectItem>
-              {agents?.map(a => (
-                <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!isCashierOnly && (
+          <div>
+            <Select value={agentFilter} onValueChange={setAgentFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Agent" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Agents</SelectItem>
+                {agents?.map(a => (
+                  <SelectItem key={a.id} value={a.id}>{a.company_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
-        <div>
-          <Select value={driverFilter} onValueChange={setDriverFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Driver" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Drivers</SelectItem>
-              {drivers?.map(d => (
-                <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!isCashierOnly && (
+          <div>
+            <Select value={driverFilter} onValueChange={setDriverFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Driver" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Drivers</SelectItem>
+                {drivers?.map(d => (
+                  <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div>
           <Select value={dateFilter} onValueChange={setDateFilter}>
@@ -256,10 +276,10 @@ function SalesLedger() {
                   <TableHead>Date</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Branch</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Driver</TableHead>
+                  {!isCashierOnly && <TableHead>Agent</TableHead>}
+                  {!isCashierOnly && <TableHead>Driver</TableHead>}
                   <TableHead className="text-right">Gross Total</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
+                  {!isCashierOnly && <TableHead className="text-right">Revenue</TableHead>}
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -271,12 +291,14 @@ function SalesLedger() {
                     <TableCell className="whitespace-nowrap">{new Date(s.sale_date).toLocaleString()}</TableCell>
                     <TableCell className="truncate max-w-[150px]">{s.customer_name || "Walk-in"}</TableCell>
                     <TableCell>{s.branches?.name || "Main"}</TableCell>
-                    <TableCell className="truncate max-w-[120px]">{s.agents?.company_name || "—"}</TableCell>
-                    <TableCell className="truncate max-w-[120px]">{s.drivers?.full_name || "—"}</TableCell>
+                    {!isCashierOnly && <TableCell className="truncate max-w-[120px]">{s.agents?.company_name || "—"}</TableCell>}
+                    {!isCashierOnly && <TableCell className="truncate max-w-[120px]">{s.drivers?.full_name || "—"}</TableCell>}
                     <TableCell className="text-right font-medium">{formatMoney(Number(s.gross_amount))}</TableCell>
-                    <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                      {formatMoney(Number(s.company_revenue))}
-                    </TableCell>
+                    {!isCashierOnly && (
+                      <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatMoney(Number(s.company_revenue))}
+                      </TableCell>
+                    )}
                     <TableCell className="text-center">
                       <Badge variant={s.status === "completed" ? "default" : "destructive"}>
                         {s.status}

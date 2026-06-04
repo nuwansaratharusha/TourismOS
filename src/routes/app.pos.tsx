@@ -27,7 +27,11 @@ interface CartItem extends SaleItem {
 }
 
 function PosModule() {
-  const { profile } = useAuth();
+  const { profile, roles } = useAuth();
+  const isCashierOnly = useMemo(() => {
+    return roles.includes("cashier") && !roles.some(r => ["super_admin", "branch_manager", "accountant"].includes(r));
+  }, [roles]);
+
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>("");
@@ -84,8 +88,9 @@ function PosModule() {
   });
 
   const activeAgentObj = useMemo(() => {
+    if (isCashierOnly) return undefined;
     return agents?.find(a => a.id === selectedAgent);
-  }, [agents, selectedAgent]);
+  }, [agents, selectedAgent, isCashierOnly]);
 
   // 4. Fetch active drivers
   const { data: drivers } = useQuery({
@@ -98,8 +103,9 @@ function PosModule() {
   });
 
   const activeDriverObj = useMemo(() => {
+    if (isCashierOnly) return undefined;
     return drivers?.find(d => d.id === selectedDriver);
-  }, [drivers, selectedDriver]);
+  }, [drivers, selectedDriver, isCashierOnly]);
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
@@ -167,8 +173,8 @@ function PosModule() {
 
       const salePayload = {
         branch_id: selectedBranch,
-        agent_id: selectedAgent === "none" ? null : selectedAgent,
-        driver_id: selectedDriver === "none" ? null : selectedDriver,
+        agent_id: isCashierOnly ? null : (selectedAgent === "none" ? null : selectedAgent),
+        driver_id: isCashierOnly ? null : (selectedDriver === "none" ? null : selectedDriver),
         customer_name: customerName || null,
         discount: Number(discount),
         notes: notes || null,
@@ -444,44 +450,48 @@ function PosModule() {
               </div>
 
               {/* Travel Agent Select */}
-              <div className="space-y-2">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <User className="size-3 text-primary" /> Travel Agent
-                </Label>
-                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="No Agent Linked" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Walk-in (No Agent)</SelectItem>
-                    {agents?.map(a => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.company_name} ({a.default_commission_rate}%)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isCashierOnly && (
+                <div className="space-y-2">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <User className="size-3 text-primary" /> Travel Agent
+                  </Label>
+                  <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="No Agent Linked" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Walk-in (No Agent)</SelectItem>
+                      {agents?.map(a => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.company_name} ({a.default_commission_rate}%)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Driver Select */}
-              <div className="space-y-2">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Car className="size-3 text-primary" /> Driver
-                </Label>
-                <Select value={selectedDriver} onValueChange={setSelectedDriver}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="No Driver Linked" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Driver (Self-drive/Taxi)</SelectItem>
-                    {drivers?.map(d => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.full_name} ({d.vehicle_number})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isCashierOnly && (
+                <div className="space-y-2">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Car className="size-3 text-primary" /> Driver
+                  </Label>
+                  <Select value={selectedDriver} onValueChange={setSelectedDriver}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="No Driver Linked" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Driver (Self-drive/Taxi)</SelectItem>
+                      {drivers?.map(d => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.full_name} ({d.vehicle_number})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Flat Discount Input */}
               <div className="space-y-2">
@@ -521,26 +531,30 @@ function PosModule() {
                   <span>{formatMoney(calculations.vat_amount)}</span>
                 </div>
 
-                <div className="border-t border-dashed my-2 pt-2 space-y-2">
-                  <div className="flex justify-between text-primary font-medium">
-                    <span>Agent Commission ({calculations.agent_rate}%)</span>
-                    <span>{formatMoney(calculations.agent_amount)}</span>
+                {!isCashierOnly && (
+                  <div className="border-t border-dashed my-2 pt-2 space-y-2">
+                    <div className="flex justify-between text-primary font-medium">
+                      <span>Agent Commission ({calculations.agent_rate}%)</span>
+                      <span>{formatMoney(calculations.agent_amount)}</span>
+                    </div>
+                    <div className="flex justify-between text-accent font-medium">
+                      <span>Driver Commission ({calculations.driver_rate}%)</span>
+                      <span>{formatMoney(calculations.driver_amount)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-accent font-medium">
-                    <span>Driver Commission ({calculations.driver_rate}%)</span>
-                    <span>{formatMoney(calculations.driver_amount)}</span>
-                  </div>
-                </div>
+                )}
 
                 <div className="border-t border-border pt-3 mt-3 space-y-2">
                   <div className="flex justify-between text-sm font-bold text-foreground">
                     <span>Gross (Collectable)</span>
                     <span className="text-base text-primary font-mono">{formatMoney(calculations.gross_amount)}</span>
                   </div>
-                  <div className="flex justify-between text-[11px] font-semibold text-muted-foreground bg-accent/10 px-2 py-1.5 rounded">
-                    <span>Final Company Revenue</span>
-                    <span>{formatMoney(calculations.company_revenue)}</span>
-                  </div>
+                  {!isCashierOnly && (
+                    <div className="flex justify-between text-[11px] font-semibold text-muted-foreground bg-accent/10 px-2 py-1.5 rounded">
+                      <span>Final Company Revenue</span>
+                      <span>{formatMoney(calculations.company_revenue)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -586,13 +600,13 @@ function PosModule() {
                 <span className="text-muted-foreground">Collectable Cash</span>
                 <span className="font-semibold text-primary">{formatMoney(Number(invoice.gross_amount))}</span>
               </div>
-              {invoice.agents && (
+              {!isCashierOnly && invoice.agents && (
                 <div className="flex justify-between border-b pb-2 text-xs">
                   <span className="text-muted-foreground">Agent Commission</span>
                   <span className="font-medium text-emerald-600">{formatMoney(Number(invoice.agent_commission_amount))} ({invoice.agent_commission_rate}%)</span>
                 </div>
               )}
-              {invoice.drivers && (
+              {!isCashierOnly && invoice.drivers && (
                 <div className="flex justify-between border-b pb-2 text-xs">
                   <span className="text-muted-foreground">Driver Commission</span>
                   <span className="font-medium text-amber-600">{formatMoney(Number(invoice.driver_commission_amount))} ({invoice.driver_commission_rate}%)</span>

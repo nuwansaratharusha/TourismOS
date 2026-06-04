@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +17,10 @@ export const Route = createFileRoute("/app/sales/$id")({
 
 function InvoiceDetails() {
   const { id } = Route.useParams();
+  const { roles } = useAuth();
+  const isCashierOnly = useMemo(() => {
+    return roles.includes("cashier") && !roles.some(r => ["super_admin", "branch_manager", "accountant"].includes(r));
+  }, [roles]);
 
   // 1. Fetch sale data
   const { data: sale, isLoading: loadingSale } = useQuery({
@@ -295,37 +301,41 @@ function InvoiceDetails() {
                   <span>{formatMoney(Number(sale.gross_amount))}</span>
                 </div>
 
-                <div className="space-y-2 border-b pb-2">
-                  <div className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">Commission Deductions</div>
-                  {sale.agents ? (
-                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                      <span>Agent: {sale.agents.company_name} ({sale.agent_commission_rate}%)</span>
-                      <span>{formatMoney(Number(sale.agent_commission_amount))}</span>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between text-muted-foreground italic">
-                      <span>No Agent linked</span>
-                      <span>Rs. 0.00</span>
-                    </div>
-                  )}
+                {!isCashierOnly && (
+                  <>
+                    <div className="space-y-2 border-b pb-2">
+                      <div className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">Commission Deductions</div>
+                      {sale.agents ? (
+                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                          <span>Agent: {sale.agents.company_name} ({sale.agent_commission_rate}%)</span>
+                          <span>{formatMoney(Number(sale.agent_commission_amount))}</span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between text-muted-foreground italic">
+                          <span>No Agent linked</span>
+                          <span>Rs. 0.00</span>
+                        </div>
+                      )}
 
-                  {sale.drivers ? (
-                    <div className="flex justify-between text-amber-600 dark:text-amber-400">
-                      <span>Driver: {sale.drivers.full_name} ({sale.driver_commission_rate}%)</span>
-                      <span>{formatMoney(Number(sale.driver_commission_amount))}</span>
+                      {sale.drivers ? (
+                        <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                          <span>Driver: {sale.drivers.full_name} ({sale.driver_commission_rate}%)</span>
+                          <span>{formatMoney(Number(sale.driver_commission_amount))}</span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between text-muted-foreground italic">
+                          <span>No Driver linked</span>
+                          <span>Rs. 0.00</span>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex justify-between text-muted-foreground italic">
-                      <span>No Driver linked</span>
-                      <span>Rs. 0.00</span>
-                    </div>
-                  )}
-                </div>
 
-                <div className="flex justify-between font-semibold text-sm bg-primary/5 p-2 rounded border text-primary">
-                  <span>Final Net Revenue</span>
-                  <span>{formatMoney(Number(sale.company_revenue))}</span>
-                </div>
+                    <div className="flex justify-between font-semibold text-sm bg-primary/5 p-2 rounded border text-primary">
+                      <span>Final Net Revenue</span>
+                      <span>{formatMoney(Number(sale.company_revenue))}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
 

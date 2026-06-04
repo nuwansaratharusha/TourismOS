@@ -8,7 +8,7 @@ import { formatMoney } from "@/lib/domain/commission";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TrendingUp, Wallet, Receipt, Percent, Database, Sparkles, Car, Landmark } from "lucide-react";
+import { TrendingUp, Wallet, Receipt, Percent, Database, Sparkles, Car, Landmark, Terminal, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
@@ -28,6 +28,9 @@ interface SalesAgg {
 
 function Dashboard() {
   const { profile, roles } = useAuth();
+  const isCashierOnly = useMemo(() => {
+    return roles.includes("cashier") && !roles.some(r => ["super_admin", "branch_manager", "accountant"].includes(r));
+  }, [roles]);
   const [seeding, setSeeding] = useState(false);
 
   const { data, refetch } = useQuery({
@@ -243,14 +246,20 @@ function Dashboard() {
     }
   };
 
-  const cards = [
-    { label: "Today's gross sales", value: formatMoney(data?.today_sales ?? 0), icon: Receipt, desc: "Total transactions checked out today" },
-    { label: "This month sales (MTD)", value: formatMoney(data?.month_sales ?? 0), icon: TrendingUp, desc: "Accumulated gross sales" },
-    { label: "Company net revenue (MTD)", value: formatMoney(data?.company_revenue ?? 0), icon: Landmark, desc: "Revenue after VAT and commissions" },
-    { label: "VAT collected (MTD)", value: formatMoney(data?.vat_collected ?? 0), icon: Percent, desc: "18% flat state rate" },
-    { label: "Total commissions ledger", value: formatMoney(data?.total_commissions ?? 0), icon: Wallet, desc: "Accumulated commission obligations" },
-    { label: "Pending payout", value: formatMoney(data?.pending_commissions ?? 0), icon: Wallet, desc: "Outstanding payments due" },
-  ];
+  const cards = isCashierOnly
+    ? [
+        { label: "Today's gross sales", value: formatMoney(data?.today_sales ?? 0), icon: Receipt, desc: "Total transactions checked out today" },
+        { label: "This month sales (MTD)", value: formatMoney(data?.month_sales ?? 0), icon: TrendingUp, desc: "Accumulated gross sales" },
+        { label: "VAT collected (MTD)", value: formatMoney(data?.vat_collected ?? 0), icon: Percent, desc: "18% flat state rate" },
+      ]
+    : [
+        { label: "Today's gross sales", value: formatMoney(data?.today_sales ?? 0), icon: Receipt, desc: "Total transactions checked out today" },
+        { label: "This month sales (MTD)", value: formatMoney(data?.month_sales ?? 0), icon: TrendingUp, desc: "Accumulated gross sales" },
+        { label: "Company net revenue (MTD)", value: formatMoney(data?.company_revenue ?? 0), icon: Landmark, desc: "Revenue after VAT and commissions" },
+        { label: "VAT collected (MTD)", value: formatMoney(data?.vat_collected ?? 0), icon: Percent, desc: "18% flat state rate" },
+        { label: "Total commissions ledger", value: formatMoney(data?.total_commissions ?? 0), icon: Wallet, desc: "Accumulated commission obligations" },
+        { label: "Pending payout", value: formatMoney(data?.pending_commissions ?? 0), icon: Wallet, desc: "Outstanding payments due" },
+      ];
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -297,137 +306,193 @@ function Dashboard() {
         ))}
       </div>
 
-      {/* Chart and Tables Grid */}
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Charts */}
-        <Card className="p-6 lg:col-span-2">
-          <div className="font-semibold text-sm mb-4">Financial Trends (LKR)</div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data?.chartData ?? []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                <XAxis dataKey="name" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `Rs.${v}`} />
-                <Tooltip formatter={(value) => [`Rs. ${value}`]} contentStyle={{ background: "var(--card)", borderColor: "var(--border)" }} />
-                <Area type="monotone" dataKey="Sales" name="Gross Sales" stroke="var(--color-primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSales)" />
-                <Area type="monotone" dataKey="Revenue" name="Company Net" stroke="var(--color-accent)" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
-              </AreaChart>
-            </ResponsiveContainer>
+      {isCashierOnly ? (
+        <div className="space-y-6">
+          <div className="font-semibold text-sm text-muted-foreground uppercase tracking-widest border-b pb-2">
+            Operational Quick Actions
           </div>
-        </Card>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="p-6 flex flex-col justify-between h-48 border border-indigo-100 dark:border-indigo-500/10 hover:shadow-lg hover:shadow-indigo-500/5 transition-all">
+              <div>
+                <div className="size-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mb-4">
+                  <Terminal className="size-5" />
+                </div>
+                <h3 className="font-bold text-base text-foreground mb-1">Touch Terminal</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Open the standalone touchscreen-optimized cashier terminal.
+                </p>
+              </div>
+              <Button asChild className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl">
+                <Link to="/app/terminal">Launch Terminal</Link>
+              </Button>
+            </Card>
 
-        {/* Info panel */}
-        <Card className="p-6">
-          <h3 className="font-semibold text-sm mb-4">Top Travel Agents (Month)</h3>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Agent</TableHead>
-                  <TableHead className="text-right">Commission</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!data?.topAgents || data.topAgents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center text-xs text-muted-foreground py-8">
-                      No agent commissions tracked this month.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  data.topAgents.map(a => (
-                    <TableRow key={a.name}>
-                      <TableCell className="py-2 text-xs">
-                        <div className="font-medium">{a.name}</div>
-                        <div className="text-[10px] text-muted-foreground">{a.salesCount} bookings</div>
-                      </TableCell>
-                      <TableCell className="text-right py-2 text-xs font-semibold text-primary">
-                        {formatMoney(a.amount)}
-                      </TableCell>
+            <Card className="p-6 flex flex-col justify-between h-48 border border-sky-100 dark:border-sky-500/10 hover:shadow-lg hover:shadow-sky-500/5 transition-all">
+              <div>
+                <div className="size-10 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center mb-4">
+                  <ShoppingCart className="size-5" />
+                </div>
+                <h3 className="font-bold text-base text-foreground mb-1">Point of Sale</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Access the standard retail checkout and catalog cart module.
+                </p>
+              </div>
+              <Button asChild className="w-full mt-4 bg-sky-600 hover:bg-sky-500 text-white rounded-xl">
+                <Link to="/app/pos">Open POS</Link>
+              </Button>
+            </Card>
+
+            <Card className="p-6 flex flex-col justify-between h-48 border border-emerald-100 dark:border-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/5 transition-all">
+              <div>
+                <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4">
+                  <Receipt className="size-5" />
+                </div>
+                <h3 className="font-bold text-base text-foreground mb-1">Sales &amp; Invoices</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Review retail invoice histories and print thermal copies.
+                </p>
+              </div>
+              <Button asChild className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl">
+                <Link to="/app/sales">View Sales History</Link>
+              </Button>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Chart and Tables Grid */}
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Charts */}
+            <Card className="p-6 lg:col-span-2">
+              <div className="font-semibold text-sm mb-4">Financial Trends (LKR)</div>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data?.chartData ?? []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-accent)" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="var(--color-accent)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                    <XAxis dataKey="name" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `Rs.${v}`} />
+                    <Tooltip formatter={(value) => [`Rs. ${value}`]} contentStyle={{ background: "var(--card)", borderColor: "var(--border)" }} />
+                    <Area type="monotone" dataKey="Sales" name="Gross Sales" stroke="var(--color-primary)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSales)" />
+                    <Area type="monotone" dataKey="Revenue" name="Company Net" stroke="var(--color-accent)" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Info panel */}
+            <Card className="p-6">
+              <h3 className="font-semibold text-sm mb-4">Top Travel Agents (Month)</h3>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Agent</TableHead>
+                      <TableHead className="text-right">Commission</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {!data?.topAgents || data.topAgents.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-xs text-muted-foreground py-8">
+                          No agent commissions tracked this month.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      data.topAgents.map(a => (
+                        <TableRow key={a.name}>
+                          <TableCell className="py-2 text-xs">
+                            <div className="font-medium">{a.name}</div>
+                            <div className="text-[10px] text-muted-foreground">{a.salesCount} bookings</div>
+                          </TableCell>
+                          <TableCell className="text-right py-2 text-xs font-semibold text-primary">
+                            {formatMoney(a.amount)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Top Drivers */}
-        <Card className="p-6">
-          <h3 className="font-semibold text-sm mb-4">Top Drivers (Month)</h3>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Driver</TableHead>
-                  <TableHead className="text-right">Commissions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!data?.topDrivers || data.topDrivers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center text-xs text-muted-foreground py-8">
-                      No driver commissions tracked this month.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  data.topDrivers.map(d => (
-                    <TableRow key={d.name}>
-                      <TableCell className="py-2 text-xs">
-                        <div className="font-medium">{d.name}</div>
-                        <div className="text-[10px] text-muted-foreground">{d.tripsCount} trips</div>
-                      </TableCell>
-                      <TableCell className="text-right py-2 text-xs font-semibold text-accent">
-                        {formatMoney(d.amount)}
-                      </TableCell>
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Top Drivers */}
+            <Card className="p-6">
+              <h3 className="font-semibold text-sm mb-4">Top Drivers (Month)</h3>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Driver</TableHead>
+                      <TableHead className="text-right">Commissions</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {!data?.topDrivers || data.topDrivers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-xs text-muted-foreground py-8">
+                          No driver commissions tracked this month.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      data.topDrivers.map(d => (
+                        <TableRow key={d.name}>
+                          <TableCell className="py-2 text-xs">
+                            <div className="font-medium">{d.name}</div>
+                            <div className="text-[10px] text-muted-foreground">{d.tripsCount} trips</div>
+                          </TableCell>
+                          <TableCell className="text-right py-2 text-xs font-semibold text-accent">
+                            {formatMoney(d.amount)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
 
-        {/* Operating status info */}
-        <Card className="p-6 flex flex-col justify-between">
-          <div>
-            <h3 className="font-semibold text-sm mb-4">Enterprise Status</h3>
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between py-1 border-b border-border/50">
-                <span className="text-muted-foreground">Default VAT Rate</span>
-                <span className="font-medium">18.00%</span>
+            {/* Operating status info */}
+            <Card className="p-6 flex flex-col justify-between">
+              <div>
+                <h3 className="font-semibold text-sm mb-4">Enterprise Status</h3>
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between py-1 border-b border-border/50">
+                    <span className="text-muted-foreground">Default VAT Rate</span>
+                    <span className="font-medium">18.00%</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-border/50">
+                    <span className="text-muted-foreground">Operating Currency</span>
+                    <span className="font-medium">Sri Lankan Rupee (LKR)</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-border/50">
+                    <span className="text-muted-foreground">Tenant Domain</span>
+                    <span className="font-medium">gunatilake-batiks</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-muted-foreground">Active Roles</span>
+                    <span className="font-medium capitalize">{roles.join(" · ") || "None"}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between py-1 border-b border-border/50">
-                <span className="text-muted-foreground">Operating Currency</span>
-                <span className="font-medium">Sri Lankan Rupee (LKR)</span>
+              <div className="text-[10px] text-muted-foreground/60 border-t border-border/50 pt-4 mt-6">
+                All database connections are encrypted, and security boundaries are enforced using Row-Level Security policies.
               </div>
-              <div className="flex justify-between py-1 border-b border-border/50">
-                <span className="text-muted-foreground">Tenant Domain</span>
-                <span className="font-medium">gunatilake-batiks</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-muted-foreground">Active Roles</span>
-                <span className="font-medium capitalize">{roles.join(" · ") || "None"}</span>
-              </div>
-            </div>
+            </Card>
           </div>
-          <div className="text-[10px] text-muted-foreground/60 border-t border-border/50 pt-4 mt-6">
-            All database connections are encrypted, and security boundaries are enforced using Row-Level Security policies.
-          </div>
-        </Card>
-      </div>
+        </>
+      )}
     </div>
   );
 }
