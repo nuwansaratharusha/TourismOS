@@ -105,7 +105,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = (r: AppRole) => roles.includes(r);
   const hasAnyRole = (rs: AppRole[]) => rs.some(r => roles.includes(r));
 
-  const signOut = async () => { await supabase.auth.signOut(); };
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Supabase sign out error:", err);
+    } finally {
+      window.location.href = "/auth";
+    }
+  };
   const refresh = async () => { if (user) await loadProfile(user.id); };
 
   return (
