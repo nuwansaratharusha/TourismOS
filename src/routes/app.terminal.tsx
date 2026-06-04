@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { 
   Clock, Wifi, WifiOff, Trash2, CheckCircle2, 
   Printer, X, FileText, ChevronLeft, RefreshCw, Smartphone, Landmark, Receipt,
-  Sun, Moon, Coins, Settings, Plus, Delete
+  Sun, Moon, Coins, Settings, Plus, Delete, Search, ShoppingBag
 } from "lucide-react";
 import { toast } from "sonner";
 import { fetchLkrRates, type ExchangeRates } from "@/utils/exchangeRates";
@@ -36,6 +36,9 @@ interface OfflineTransaction {
 interface AccumulatedEntry {
   id: string;
   amount: number;
+  description: string;
+  product_id?: string | null;
+  lkrAmount?: number;
 }
 
 function CashierTerminal() {
@@ -111,6 +114,8 @@ function CashierTerminal() {
   const [accumulatedEntries, setAccumulatedEntries] = useState<AccumulatedEntry[]>([]);
   const [customerName, setCustomerName] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [customDescription, setCustomDescription] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Connection & Offline Queue
   const [isOnline, setIsOnline] = useState<boolean>(true);
@@ -188,6 +193,29 @@ function CashierTerminal() {
     return branches.find(b => b.id === targetBranchId) || branches[0];
   }, [branches, profile, customBranchId]);
 
+  // Fetch active products
+  const { data: products, isLoading: isLoadingProducts } = useQuery({
+    queryKey: ["terminal-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return products;
+    return products.filter(p => 
+      p.name.toLowerCase().includes(query) || 
+      (p.sku && p.sku.toLowerCase().includes(query))
+    );
+  }, [products, searchQuery]);
+
   // Keypad actions
   const handleKeyPress = (val: string) => {
     if (val === "C") {
@@ -205,9 +233,15 @@ function CashierTerminal() {
       // Accumulate current entry into running total list
       const numVal = Number(currentEntry) || 0;
       if (numVal > 0) {
-        setAccumulatedEntries(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), amount: numVal }]);
+        const desc = customDescription.trim() || `Batik touch item #${accumulatedEntries.length + 1}`;
+        setAccumulatedEntries(prev => [...prev, { 
+          id: Math.random().toString(36).substring(2, 9), 
+          amount: numVal,
+          description: desc
+        }]);
         setCurrentEntry("0");
-        toast.success(`Added ${formatMoney(numVal, selectedCurrency)} to bill`);
+        setCustomDescription("");
+        toast.success(`Added ${desc} to bill`);
       }
     } else {
       // Numbers 0-9
@@ -258,6 +292,24 @@ function CashierTerminal() {
     toast.info("Item removed from bill");
   };
 
+  const handleAddProduct = (product: any) => {
+    const priceInSelectedCurrency = selectedCurrency === "LKR"
+      ? product.unit_price
+      : Number((product.unit_price / activeRate).toFixed(2));
+
+    setAccumulatedEntries(prev => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        amount: priceInSelectedCurrency,
+        description: product.name,
+        product_id: product.id,
+        lkrAmount: product.unit_price
+      }
+    ]);
+    toast.success(`Added ${product.name} to bill`);
+  };
+
   // Calculations
   const vatRate = customVatRate !== null ? customVatRate : (activeBranchObj?.vat_rate ?? 18.00);
 
@@ -269,9 +321,18 @@ function CashierTerminal() {
 
   // Convert to LKR base
   const lkrSubtotal = useMemo(() => {
-    if (selectedCurrency === "LKR") return selectedCurrencySubtotal;
-    return Number((selectedCurrencySubtotal * activeRate).toFixed(2));
-  }, [selectedCurrencySubtotal, selectedCurrency, activeRate]);
+    const accumLkr = accumulatedEntries.reduce((sum, item) => {
+      if (item.lkrAmount !== undefined) {
+        return sum + item.lkrAmount;
+      }
+      if (selectedCurrency === "LKR") return sum + item.amount;
+      return sum + Number((item.amount * activeRate).toFixed(2));
+    }, 0);
+
+    const finalCurrent = Number(currentEntry) || 0;
+    const currentLkr = selectedCurrency === "LKR" ? finalCurrent : Number((finalCurrent * activeRate).toFixed(2));
+    return accumLkr + currentLkr;
+  }, [accumulatedEntries, currentEntry, selectedCurrency, activeRate]);
 
   const vatAmount = useMemo(() => {
     return Math.round((lkrSubtotal * vatRate / 100) * 100) / 100;
@@ -286,6 +347,7 @@ function CashierTerminal() {
     setAccumulatedEntries([]);
     setCustomerName("");
     setPaymentMethod("cash");
+    setCustomDescription("");
   };
 
   // Record Sale Action
@@ -304,7 +366,11 @@ function CashierTerminal() {
     const finalEntries = [...accumulatedEntries];
     const finalCurrent = Number(currentEntry) || 0;
     if (finalCurrent > 0) {
-      finalEntries.push({ id: "final", amount: finalCurrent });
+      finalEntries.push({ 
+        id: "final", 
+        amount: finalCurrent,
+        description: customDescription.trim() || `Batik touch item #${accumulatedEntries.length + 1}`
+      });
     }
 
     const payload = {
@@ -316,11 +382,11 @@ function CashierTerminal() {
       notes: `Retail Touch checkout via Cashier Terminal (${paymentMethod.toUpperCase()})` + 
         (selectedCurrency !== "LKR" ? ` (Paid ${selectedCurrencySubtotal} ${selectedCurrency} @ rate ${activeRate} LKR)` : "") +
         (isOnline ? "" : " (Offline Buffer)"),
-      items: finalEntries.map((entry, idx) => ({
-        product_id: null,
-        description: `Batik touch item #${idx + 1}` + (selectedCurrency !== "LKR" ? ` (${entry.amount} ${selectedCurrency})` : ""),
+      items: finalEntries.map((entry) => ({
+        product_id: entry.product_id || null,
+        description: entry.description + (selectedCurrency !== "LKR" && entry.product_id === undefined ? ` (${entry.amount} ${selectedCurrency})` : ""),
         quantity: 1,
-        unit_price: selectedCurrency === "LKR" ? entry.amount : Number((entry.amount * activeRate).toFixed(2))
+        unit_price: entry.lkrAmount !== undefined ? entry.lkrAmount : (selectedCurrency === "LKR" ? entry.amount : Number((entry.amount * activeRate).toFixed(2)))
       }))
     };
 
@@ -462,15 +528,15 @@ function CashierTerminal() {
         <div className="text-[10px] font-bold pb-1 border-b border-dashed border-black">Bill Items</div>
         <table className="w-full text-left mb-2 text-[10px]">
           <tbody>
-            {accumulatedEntries.map((item, idx) => (
+            {accumulatedEntries.map((item) => (
               <tr key={item.id}>
-                <td className="py-1">Batik item #{idx + 1}</td>
+                <td className="py-1">{item.description}</td>
                 <td className="text-right py-1">{formatMoney(item.amount, selectedCurrency)}</td>
               </tr>
             ))}
             {Number(currentEntry) > 0 && (
               <tr>
-                <td className="py-1">Batik item #{accumulatedEntries.length + 1}</td>
+                <td className="py-1">{customDescription.trim() || `Batik item #${accumulatedEntries.length + 1}`}</td>
                 <td className="text-right py-1">{formatMoney(Number(currentEntry), selectedCurrency)}</td>
               </tr>
             )}
@@ -618,13 +684,14 @@ function CashierTerminal() {
                       key={item.id}
                       className="flex items-center justify-between p-2.5 rounded-xl bg-background border border-border hover:border-destructive/30 transition-all group"
                     >
-                      <div className="min-w-0">
-                        <div className="text-[10px] uppercase font-bold text-muted-foreground">Item #{idx + 1}</div>
-                        <div className="text-xs font-bold font-mono">{formatMoney(item.amount, selectedCurrency)}</div>
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="text-[9px] uppercase font-bold text-muted-foreground">Item #{idx + 1}</div>
+                        <div className="text-xs font-bold text-foreground truncate">{item.description}</div>
+                        <div className="text-xs font-bold font-mono text-muted-foreground mt-0.5">{formatMoney(item.amount, selectedCurrency)}</div>
                       </div>
                       <button
                         onClick={() => removeAccumulatedEntry(item.id)}
-                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0"
                         title="Remove entry"
                       >
                         <Trash2 className="size-3.5" />
@@ -634,7 +701,12 @@ function CashierTerminal() {
 
                   {Number(currentEntry) > 0 && (
                     <div className="p-2.5 rounded-xl bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20 border-dashed animate-pulse">
-                      <div className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400">Current Entry</div>
+                      <div className="text-[9px] uppercase font-bold text-indigo-500 dark:text-indigo-400">Current Entry</div>
+                      {customDescription.trim() && (
+                        <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 truncate mb-0.5">
+                          {customDescription.trim()}
+                        </div>
+                      )}
                       <div className="text-xs font-bold font-mono text-indigo-600 dark:text-indigo-400">
                         {formatMoney(Number(currentEntry), selectedCurrency)}
                       </div>
@@ -644,7 +716,7 @@ function CashierTerminal() {
               )}
             </div>
 
-            {/* Optional Customer Name & Payment Method selectors */}
+            {/* Optional Customer Name, Payment Method & Totals */}
             <div className="p-4 border-t border-border bg-card shrink-0 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="customer" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Customer Name (Optional)</Label>
@@ -673,6 +745,37 @@ function CashierTerminal() {
                       {method}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Totals Summary */}
+              <div className="pt-4 border-t border-border/60 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-muted-foreground">Subtotal</span>
+                  <span className="font-mono font-bold text-foreground">{formatMoney(lkrSubtotal)}</span>
+                </div>
+                {selectedCurrency !== "LKR" && (
+                  <div className="flex justify-between items-center text-[10px] text-muted-foreground italic font-mono pl-2 border-l border-border">
+                    <span>In {selectedCurrency}</span>
+                    <span>{selectedCurrency} {selectedCurrencySubtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-muted-foreground">VAT ({vatRate}%)</span>
+                  <span className="font-mono font-bold text-foreground">{formatMoney(vatAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-dashed border-border">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Gross Total</span>
+                    {selectedCurrency !== "LKR" && (
+                      <span className="text-[9px] font-mono font-bold text-muted-foreground/80 block mt-0.5">
+                        ≈ {selectedCurrency} {(grossAmount / activeRate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xl font-mono font-extrabold text-primary">
+                    {formatMoney(grossAmount)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -729,6 +832,26 @@ function CashierTerminal() {
                   >
                     <span>1 {selectedCurrency} = {activeRate.toFixed(2)} LKR</span>
                     <Settings className="size-3 text-muted-foreground/60 ml-1" />
+                  </button>
+                )}
+              </div>
+
+              {/* Custom Item Description Input */}
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Enter custom item name / description (optional)..."
+                  value={customDescription}
+                  onChange={e => setCustomDescription(e.target.value)}
+                  className="bg-card border-border text-foreground text-xs rounded-xl pl-3 pr-10 h-10 w-full"
+                />
+                {customDescription && (
+                  <button
+                    onClick={() => setCustomDescription("")}
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    title="Clear description"
+                  >
+                    <X className="size-4" />
                   </button>
                 )}
               </div>
@@ -831,69 +954,93 @@ function CashierTerminal() {
             </div>
           </main>
 
-          {/* 3. RIGHT PANEL: SALES LEDGER SUMMARY */}
+          {/* 3. RIGHT PANEL: PRODUCT CATALOG */}
           <aside className="w-80 border-l border-border bg-card/50 flex flex-col min-h-0 shrink-0">
-            <div className="p-4 border-b border-border shrink-0">
+            <div className="p-4 border-b border-border shrink-0 flex items-center justify-between">
               <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                <Receipt className="size-4 text-indigo-400" />
-                Ledger Summary
+                <ShoppingBag className="size-4 text-indigo-400" />
+                Product Catalog
               </h2>
+              {products && (
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-background border border-border rounded text-muted-foreground">
+                  {filteredProducts.length} items
+                </span>
+              )}
             </div>
 
-            <div className="flex-1 p-6 flex flex-col justify-between overflow-y-auto">
-              <div className="space-y-6">
-                
-                {/* Ledger preview lines */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                    <div>
-                      <span className="text-xs font-semibold text-muted-foreground block">Subtotal</span>
-                      {selectedCurrency !== "LKR" && (
-                        <span className="text-[10px] text-muted-foreground/80 font-mono">
-                          {selectedCurrency} {selectedCurrencySubtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm font-mono font-bold text-foreground">{formatMoney(lkrSubtotal)}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                    <div>
-                      <span className="text-xs font-semibold text-muted-foreground block">VAT Amount</span>
-                      <span className="text-[9px] text-muted-foreground/80 font-bold uppercase block">Rate: {vatRate}%</span>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-foreground">{formatMoney(vatAmount)}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Card className="p-4 bg-indigo-500/5 dark:bg-indigo-500/10 border-indigo-500/10">
-                    <div className="text-[9px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 mb-1">
-                      Cashier Workflow Note
-                    </div>
-                    <p className="text-[10px] text-muted-foreground leading-normal">
-                      Pressing <strong>Record Sale</strong> submits the transaction to the database. All commission rules, travel agent credits, and driver splits are processed securely downstream by Commission Analytics.
-                    </p>
-                  </Card>
-                </div>
+            {/* Search Input */}
+            <div className="p-3 border-b border-border shrink-0">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search catalog..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="bg-background border-input text-foreground text-xs rounded-xl pl-9 pr-8 h-9"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
               </div>
+            </div>
 
-              {/* Total display card */}
-              <div className="mt-6 pt-4 border-t border-border/80 space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground block">Gross Total</span>
-                    {selectedCurrency !== "LKR" && (
-                      <span className="text-[10px] font-mono font-semibold text-muted-foreground mt-0.5 block">
-                        ≈ {selectedCurrency} {(grossAmount / activeRate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-2xl font-mono font-extrabold text-primary">
-                    {formatMoney(grossAmount)}
-                  </span>
+            {/* Scrollable list/grid of products */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {isLoadingProducts ? (
+                <div className="h-full flex flex-col items-center justify-center p-6 text-muted-foreground">
+                  <RefreshCw className="size-8 animate-spin text-muted-foreground/40 mb-2" />
+                  <p className="text-xs font-medium">Loading catalog...</p>
                 </div>
-              </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
+                  <ShoppingBag className="size-8 text-muted-foreground/30 mb-2 stroke-[1.5]" />
+                  <p className="text-xs font-medium">No products found</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-1">Try another search term.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {filteredProducts.map(product => {
+                    const priceInSelectedCurrency = selectedCurrency === "LKR"
+                      ? product.unit_price
+                      : Number((product.unit_price / activeRate).toFixed(2));
+                    
+                    return (
+                      <button
+                        key={product.id}
+                        onClick={() => handleAddProduct(product)}
+                        className="w-full text-left p-3 rounded-xl bg-background border border-border hover:border-primary/50 hover:bg-muted/50 transition-all flex items-center justify-between group active:scale-[0.98]"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                            {product.name}
+                          </div>
+                          {product.sku && (
+                            <div className="text-[9px] font-mono text-muted-foreground mt-0.5">
+                              {product.sku}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xs font-bold font-mono text-primary">
+                            {formatMoney(priceInSelectedCurrency, selectedCurrency)}
+                          </div>
+                          {selectedCurrency !== "LKR" && (
+                            <div className="text-[9px] font-mono text-muted-foreground mt-0.5">
+                              Rs {product.unit_price.toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </aside>
 
