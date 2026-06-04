@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -380,7 +380,7 @@ function UserRolesConsole() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {usersTableData.map(u => (
+                {usersTableData.map((u: any) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-semibold">{u.full_name}</TableCell>
                     <TableCell className="font-mono text-xs">{u.email}</TableCell>
@@ -390,7 +390,7 @@ function UserRolesConsole() {
                         {u.roles.length === 0 ? (
                           <Badge variant="outline" className="text-muted-foreground">No Role Assigned</Badge>
                         ) : (
-                          u.roles.map(ur => (
+                          u.roles.map((ur: any) => (
                             <Badge key={ur.id} variant="secondary" className="gap-1 bg-primary/10 text-primary border-primary/20">
                               <ShieldCheck className="size-3" />
                               {ur.role.replace("_", " ")}
@@ -404,7 +404,7 @@ function UserRolesConsole() {
                       {u.linkedPartnerName || "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {u.roles.map(ur => (
+                      {u.roles.map((ur: any) => (
                         <Button
                           key={ur.id}
                           size="sm"

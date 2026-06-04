@@ -44,7 +44,7 @@ function Dashboard() {
         { data: drivers }
       ] = await Promise.all([
         supabase.from("sales").select("gross_amount").gte("sale_date", todayStart.toISOString()),
-        supabase.from("sales").select("gross_amount,vat_amount,company_revenue,sale_date,net_amount,agent_id,driver_id").gte("sale_date", monthStart.toISOString()),
+        supabase.from("sales").select("gross_amount,vat_amount,company_revenue,sale_date,net_amount,agent_id,driver_id,agent_commission_amount,driver_commission_amount").gte("sale_date", monthStart.toISOString()),
         supabase.from("commissions").select("amount,status,beneficiary_type,agent_id,driver_id"),
         supabase.from("agents").select("id, company_name"),
         supabase.from("drivers").select("id, full_name")

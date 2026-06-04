@@ -25,35 +25,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadProfile = async (uid: string) => {
-    const [{ data: p }, { data: r }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", uid),
-    ]);
-    setProfile((p as Profile) ?? null);
-    setRoles((r ?? []).map((row: { role: AppRole }) => row.role));
+    try {
+      const [{ data: p }, { data: r }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", uid),
+      ]);
+      setProfile((p as Profile) ?? null);
+      setRoles((r ?? []).map((row: { role: AppRole }) => row.role));
+    } catch (err) {
+      console.error("Failed to load user profile or roles:", err);
+    }
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    let active = true;
+
+    const initAuth = async () => {
+      setLoading(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+        if (data.session?.user) {
+          await loadProfile(data.session.user.id);
+        }
+      } catch (err) {
+        console.error("Failed to initialize authentication:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
+      if (!active) return;
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        // defer DB reads to avoid deadlock inside auth callback
-        setTimeout(() => loadProfile(s.user.id), 0);
+        setLoading(true);
+        await loadProfile(s.user.id);
+        if (active) setLoading(false);
       } else {
         setProfile(null);
         setRoles([]);
+        if (active) setLoading(false);
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) loadProfile(data.session.user.id);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const hasRole = (r: AppRole) => roles.includes(r);

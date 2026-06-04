@@ -136,6 +136,7 @@ function PosModule() {
         product_id: product.id,
         sku: product.sku || "",
         name: product.name,
+        description: product.name,
         quantity: 1,
         unit_price: Number(product.unit_price)
       }];

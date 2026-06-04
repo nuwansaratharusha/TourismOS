@@ -34,13 +34,18 @@ function InvoiceDetails() {
   const { data: auditLogs } = useQuery({
     queryKey: ["sale-audits", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select("*, profiles:user_id(full_name)")
-        .eq("entity_id", id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      const [{ data: logsData, error: logsError }, { data: profilesData, error: profilesError }] = await Promise.all([
+        supabase.from("audit_logs").select("*").eq("entity_id", id).order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, full_name")
+      ]);
+      if (logsError) throw logsError;
+      if (profilesError) throw profilesError;
+
+      const profileMap = new Map((profilesData ?? []).map((p: any) => [p.id, p]));
+      return (logsData ?? []).map((log: any) => ({
+        ...log,
+        profiles: log.user_id ? profileMap.get(log.user_id) : null
+      }));
     },
   });
 

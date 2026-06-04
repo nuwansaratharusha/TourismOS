@@ -29,12 +29,18 @@ function AuditLogs() {
   const { data: logs, isLoading } = useQuery({
     queryKey: ["audit-logs-list"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select("*, profiles:user_id(full_name, email)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
+      const [{ data: logsData, error: logsError }, { data: profilesData, error: profilesError }] = await Promise.all([
+        supabase.from("audit_logs").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, full_name, email")
+      ]);
+      if (logsError) throw logsError;
+      if (profilesError) throw profilesError;
+
+      const profileMap = new Map((profilesData ?? []).map((p: any) => [p.id, p]));
+      return (logsData ?? []).map((log: any) => ({
+        ...log,
+        profiles: log.user_id ? profileMap.get(log.user_id) : null
+      }));
     },
   });
 
