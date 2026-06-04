@@ -17,6 +17,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as PortalDriverRouteImport } from './routes/portal.driver'
 import { Route as PortalAgentRouteImport } from './routes/portal.agent'
 import { Route as AppUsersRouteImport } from './routes/app.users'
+import { Route as AppTerminalRouteImport } from './routes/app.terminal'
 import { Route as AppSalesRouteImport } from './routes/app.sales'
 import { Route as AppPosRouteImport } from './routes/app.pos'
 import { Route as AppDriversRouteImport } from './routes/app.drivers'
@@ -66,6 +67,11 @@ const PortalAgentRoute = PortalAgentRouteImport.update({
 const AppUsersRoute = AppUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTerminalRoute = AppTerminalRouteImport.update({
+  id: '/terminal',
+  path: '/terminal',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSalesRoute = AppSalesRouteImport.update({
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/app/drivers': typeof AppDriversRouteWithChildren
   '/app/pos': typeof AppPosRoute
   '/app/sales': typeof AppSalesRouteWithChildren
+  '/app/terminal': typeof AppTerminalRoute
   '/app/users': typeof AppUsersRoute
   '/portal/agent': typeof PortalAgentRoute
   '/portal/driver': typeof PortalDriverRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/app/drivers': typeof AppDriversRouteWithChildren
   '/app/pos': typeof AppPosRoute
   '/app/sales': typeof AppSalesRouteWithChildren
+  '/app/terminal': typeof AppTerminalRoute
   '/app/users': typeof AppUsersRoute
   '/portal/agent': typeof PortalAgentRoute
   '/portal/driver': typeof PortalDriverRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/app/drivers': typeof AppDriversRouteWithChildren
   '/app/pos': typeof AppPosRoute
   '/app/sales': typeof AppSalesRouteWithChildren
+  '/app/terminal': typeof AppTerminalRoute
   '/app/users': typeof AppUsersRoute
   '/portal/agent': typeof PortalAgentRoute
   '/portal/driver': typeof PortalDriverRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/app/drivers'
     | '/app/pos'
     | '/app/sales'
+    | '/app/terminal'
     | '/app/users'
     | '/portal/agent'
     | '/portal/driver'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/app/drivers'
     | '/app/pos'
     | '/app/sales'
+    | '/app/terminal'
     | '/app/users'
     | '/portal/agent'
     | '/portal/driver'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/app/drivers'
     | '/app/pos'
     | '/app/sales'
+    | '/app/terminal'
     | '/app/users'
     | '/portal/agent'
     | '/portal/driver'
@@ -304,6 +316,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/app/users'
       preLoaderRoute: typeof AppUsersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/terminal': {
+      id: '/app/terminal'
+      path: '/terminal'
+      fullPath: '/app/terminal'
+      preLoaderRoute: typeof AppTerminalRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/sales': {
@@ -423,6 +442,7 @@ interface AppRouteChildren {
   AppDriversRoute: typeof AppDriversRouteWithChildren
   AppPosRoute: typeof AppPosRoute
   AppSalesRoute: typeof AppSalesRouteWithChildren
+  AppTerminalRoute: typeof AppTerminalRoute
   AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -435,6 +455,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDriversRoute: AppDriversRouteWithChildren,
   AppPosRoute: AppPosRoute,
   AppSalesRoute: AppSalesRouteWithChildren,
+  AppTerminalRoute: AppTerminalRoute,
   AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
 }

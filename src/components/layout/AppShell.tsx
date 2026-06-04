@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard, ShoppingCart, Users, Car, Receipt,
-  Wallet, ScrollText, LogOut, Building2, Briefcase
+  Wallet, ScrollText, LogOut, Building2, Briefcase, Terminal
 } from "lucide-react";
 import type { AppRole } from "@/lib/domain/types";
 import type { ReactNode } from "react";
@@ -19,6 +19,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin","branch_manager","cashier","accountant"] },
   { to: "/app/pos", label: "Point of Sale", icon: ShoppingCart, roles: ["super_admin","branch_manager","cashier"] },
+  { to: "/app/terminal", label: "Touch Terminal", icon: Terminal, roles: ["super_admin","branch_manager","cashier"] },
   { to: "/app/sales", label: "Sales & Invoices", icon: Receipt, roles: ["super_admin","branch_manager","cashier","accountant"] },
   { to: "/app/commissions", label: "Commissions", icon: Wallet, roles: ["super_admin","branch_manager","accountant","cashier"] },
   { to: "/app/agents", label: "Travel Agents", icon: Briefcase, roles: ["super_admin","branch_manager"] },
